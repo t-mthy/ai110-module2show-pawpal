@@ -137,14 +137,90 @@ class Scheduler:
 
     def detect_conflicts(self, tasks):
         """Find tasks that overlap in time and return warning messages."""
-        # Placeholder — full logic coming in Phase 3 (Algorithmic Layer)
         warnings = []
+
+        # Sort tasks by start time so we can compare neighbors
+        sorted_tasks = self.sort_by_time(tasks)
+
+        # Walk through each pair of consecutive tasks
+        for i in range(len(sorted_tasks) - 1):
+            current = sorted_tasks[i]
+            next_task = sorted_tasks[i + 1]
+
+            # Calculate when the current task ends
+            # Convert "HH:MM" to total minutes, add duration, compare
+            current_start = self._time_to_minutes(current.due_time)
+            current_end = current_start + current.duration_minutes
+            next_start = self._time_to_minutes(next_task.due_time)
+
+            # If the current task hasn't finished before the next one starts,
+            # that's a conflict (overlap)
+            if current_end > next_start:
+                warnings.append(
+                    f"Conflict: \"{current.description}\" ({current.pet_name}) "
+                    f"ends at {self._minutes_to_time(current_end)}, but "
+                    f"\"{next_task.description}\" ({next_task.pet_name}) "
+                    f"starts at {next_task.due_time}"
+                )
+
         return warnings
 
     def handle_recurrence(self, task):
         """If a task is recurring, create the next occurrence."""
-        # Placeholder — full logic coming in Phase 3 (Algorithmic Layer)
-        return None
+        # Only process tasks that actually repeat
+        if not task.is_recurring():
+            return None
+
+        # Parse the current due date string into a date object
+        current_date = date.fromisoformat(task.due_date)
+
+        # Calculate the next due date based on frequency
+        if task.frequency == "daily":
+            next_date = current_date + timedelta(days=1)
+        elif task.frequency == "weekly":
+            next_date = current_date + timedelta(weeks=1)
+        else:
+            return None
+
+        # Create a fresh copy of the task with the new date
+        new_task = Task(
+            description=task.description,
+            due_date=next_date.isoformat(),
+            due_time=task.due_time,
+            duration_minutes=task.duration_minutes,
+            priority=task.priority,
+            frequency=task.frequency,
+            completed=False,           # new occurrence starts incomplete
+            pet_name=task.pet_name,
+        )
+        return new_task
+
+    def mark_task_complete(self, task):
+        """Mark a task done and auto-schedule the next one if it recurs."""
+        # Mark the original task as completed
+        task.mark_complete()
+
+        # If it's recurring, create the next occurrence
+        new_task = self.handle_recurrence(task)
+        if new_task:
+            # Find which pet owns this task and add the new one to them
+            pet = self.owner.get_pet(new_task.pet_name)
+            if pet:
+                pet.add_task(new_task)
+        return new_task
+
+    # ── Helper methods for time math ──
+
+    def _time_to_minutes(self, time_str):
+        """Convert 'HH:MM' string to total minutes since midnight."""
+        hours, minutes = time_str.split(":")
+        return int(hours) * 60 + int(minutes)
+
+    def _minutes_to_time(self, total_minutes):
+        """Convert total minutes since midnight back to 'HH:MM' string."""
+        hours = total_minutes // 60
+        minutes = total_minutes % 60
+        return f"{hours:02d}:{minutes:02d}"
 
     def find_next_available_slot(self, tasks, duration, target_date):
         """Find the next open time slot of a given duration."""

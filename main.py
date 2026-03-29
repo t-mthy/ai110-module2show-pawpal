@@ -33,6 +33,7 @@ def main():
 
     # ──────────────────────────────────────────
     # Step 3: Add Tasks (intentionally out of order)
+    #         Two tasks overlap to test conflict detection
     # ──────────────────────────────────────────
     # Mochi's tasks
     mochi.add_task(Task(
@@ -51,10 +52,10 @@ def main():
         duration_minutes=5, priority="high"
     ))
 
-    # Whiskers' tasks
+    # Whiskers' tasks — Breakfast at 07:15 overlaps with Mochi's 07:00-07:30
     whiskers.add_task(Task(
         description="Breakfast feeding",
-        due_date=today, due_time="07:30",
+        due_date=today, due_time="07:15",
         duration_minutes=10, priority="high", frequency="daily"
     ))
     whiskers.add_task(Task(
@@ -69,43 +70,70 @@ def main():
     scheduler = Scheduler(owner)
     schedule = scheduler.get_daily_schedule(today)
 
-    # Print a nicely formatted schedule
-    print("=" * 55)
+    print("=" * 58)
     print(f"  PawPal+ Daily Schedule — {today}")
-    print("=" * 55)
+    print("=" * 58)
     print(f"  {'Time':<8} {'Task':<22} {'Pet':<10} {'Priority':<8}")
-    print("-" * 55)
+    print("-" * 58)
 
     for task in schedule:
         print(f"  {task.due_time:<8} {task.description:<22} "
               f"{task.pet_name:<10} {task.priority:<8}")
 
-    print("=" * 55)
+    print("=" * 58)
     print(f"  Total tasks: {len(schedule)}")
     print()
 
     # ──────────────────────────────────────────
-    # Step 5: Test mark_complete on a task
+    # Step 5: Conflict Detection
     # ──────────────────────────────────────────
-    first_task = schedule[0]
-    print(f"Completing task: \"{first_task.description}\" ... ", end="")
-    first_task.mark_complete()
-    print(f"Done! (completed = {first_task.completed})")
+    conflicts = scheduler.detect_conflicts(schedule)
 
-    # Show remaining pending tasks
-    pending = scheduler.filter_by_status(
-        scheduler.get_daily_schedule(today), completed=False
-    )
-    print(f"Pending tasks remaining: {len(pending)}\n")
+    if conflicts:
+        print("!! Schedule Conflicts Detected:")
+        for warning in conflicts:
+            print(f"   -> {warning}")
+        print()
+    else:
+        print("No scheduling conflicts found.\n")
 
     # ──────────────────────────────────────────
-    # Step 6: Filter tasks by pet
+    # Step 6: Mark a recurring task complete
+    #         and show the auto-generated next occurrence
+    # ──────────────────────────────────────────
+    morning_walk = schedule[0]  # "Morning walk" at 07:00 (daily)
+    print(f"Completing recurring task: \"{morning_walk.description}\"")
+    new_task = scheduler.mark_task_complete(morning_walk)
+
+    if new_task:
+        print(f"   -> Completed for {morning_walk.due_date}")
+        print(f"   -> Next occurrence auto-created for {new_task.due_date}")
+    print()
+
+    # Show Mochi's updated tasks (should now include tomorrow's walk)
+    print(f"Mochi's tasks after recurrence:")
+    for t in mochi.get_tasks():
+        print(f"   {t}")
+    print()
+
+    # ──────────────────────────────────────────
+    # Step 7: Filter and sort demos
     # ──────────────────────────────────────────
     all_tasks = owner.get_all_tasks()
-    mochi_tasks = scheduler.filter_by_pet(all_tasks, "Mochi")
+
+    # Filter: only pending tasks
+    pending = scheduler.filter_by_status(all_tasks, completed=False)
+    print(f"Pending tasks across all pets: {len(pending)}")
+
+    # Filter: only Whiskers' tasks
     whiskers_tasks = scheduler.filter_by_pet(all_tasks, "Whiskers")
-    print(f"Mochi's tasks:    {len(mochi_tasks)}")
-    print(f"Whiskers' tasks:  {len(whiskers_tasks)}")
+    print(f"Whiskers' tasks: {len(whiskers_tasks)}")
+
+    # Sort by priority
+    by_priority = scheduler.sort_by_priority(pending)
+    print(f"\nPending tasks sorted by priority:")
+    for t in by_priority:
+        print(f"   {t}")
 
 
 if __name__ == "__main__":
