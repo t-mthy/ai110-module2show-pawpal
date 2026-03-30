@@ -223,6 +223,48 @@ class Scheduler:
         return f"{hours:02d}:{minutes:02d}"
 
     def find_next_available_slot(self, tasks, duration, target_date):
-        """Find the next open time slot of a given duration."""
-        # Placeholder — full logic coming in Phase 7 (Advanced)
+        """Find the next open time slot of a given duration.
+
+        Scans the day from 06:00 to 22:00 and looks for a gap between
+        existing tasks that is large enough to fit the requested duration.
+        Returns the start time as a "HH:MM" string, or None if no slot fits.
+        """
+        # Define the window we consider "schedulable" (6 AM to 10 PM)
+        day_start = self._time_to_minutes("06:00")   # 360 minutes
+        day_end = self._time_to_minutes("22:00")      # 1320 minutes
+
+        # Filter to only tasks on the target date, then sort by time
+        day_tasks = [t for t in tasks if t.due_date == target_date]
+        sorted_tasks = self.sort_by_time(day_tasks)
+
+        # Build a list of "busy blocks" — (start, end) in minutes
+        busy_blocks = []
+        for t in sorted_tasks:
+            start = self._time_to_minutes(t.due_time)
+            end = start + t.duration_minutes
+            busy_blocks.append((start, end))
+
+        # Walk through the day looking for a gap big enough
+        # Start checking from the beginning of the schedulable window
+        current_time = day_start
+
+        for block_start, block_end in busy_blocks:
+            # If the block starts after our current position,
+            # there's a gap between current_time and block_start
+            if block_start > current_time:
+                gap = block_start - current_time
+                # If the gap is big enough, we found our slot
+                if gap >= duration:
+                    return self._minutes_to_time(current_time)
+
+            # Move past this busy block (take the later of the two
+            # in case blocks overlap)
+            if block_end > current_time:
+                current_time = block_end
+
+        # Check the gap between the last task and end of day
+        if day_end - current_time >= duration:
+            return self._minutes_to_time(current_time)
+
+        # No slot found — the day is too full
         return None

@@ -135,6 +135,31 @@ def main():
     for t in by_priority:
         print(f"   {t}")
 
+    # ──────────────────────────────────────────
+    # Step 8: Find next available slot
+    # ──────────────────────────────────────────
+    print("\n" + "=" * 58)
+    print("  Next Available Slot Finder")
+    print("=" * 58)
+
+    all_today = scheduler.get_daily_schedule(today)
+
+    # Try to find a 45-minute slot
+    slot_45 = scheduler.find_next_available_slot(all_today, 45, today)
+    if slot_45:
+        print(f"  45-min slot available at: {slot_45}")
+    else:
+        print("  No 45-min slot available today.")
+
+    # Try to find a 2-hour slot
+    slot_120 = scheduler.find_next_available_slot(all_today, 120, today)
+    if slot_120:
+        print(f"  2-hour slot available at:  {slot_120}")
+    else:
+        print("  No 2-hour slot available today.")
+
+    print("=" * 58)
+
 
 if __name__ == "__main__":
     main()

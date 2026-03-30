@@ -333,3 +333,86 @@ def test_detect_conflicts_empty_list():
     scheduler = Scheduler(owner)
 
     assert scheduler.detect_conflicts([]) == []
+
+
+# ══════════════════════════════════════════════
+# NEXT AVAILABLE SLOT TESTS
+# ══════════════════════════════════════════════
+
+def test_find_slot_in_morning_gap():
+    """Should find a slot in the gap before the first task of the day."""
+    owner = Owner(name="Jordan")
+    scheduler = Scheduler(owner)
+
+    # One task at 08:00 — there's a gap from 06:00 to 08:00 (120 min)
+    tasks = [
+        Task(description="Walk", due_date="2026-03-29",
+             due_time="08:00", duration_minutes=30, priority="high"),
+    ]
+
+    # A 60-min slot should fit at 06:00 (start of schedulable window)
+    slot = scheduler.find_next_available_slot(tasks, 60, "2026-03-29")
+    assert slot == "06:00"
+
+
+def test_find_slot_between_tasks():
+    """Should find a slot in a gap between two tasks."""
+    owner = Owner(name="Jordan")
+    scheduler = Scheduler(owner)
+
+    # Task A: 06:00-06:30, Task B: 09:00-09:30
+    # Gap between them: 06:30 to 09:00 = 150 min
+    tasks = [
+        Task(description="Feeding", due_date="2026-03-29",
+             due_time="06:00", duration_minutes=30, priority="high"),
+        Task(description="Grooming", due_date="2026-03-29",
+             due_time="09:00", duration_minutes=30, priority="medium"),
+    ]
+
+    # A 60-min slot should fit at 06:30 (right after the first task)
+    slot = scheduler.find_next_available_slot(tasks, 60, "2026-03-29")
+    assert slot == "06:30"
+
+
+def test_find_slot_after_last_task():
+    """Should find a slot after all tasks if that's where the gap is."""
+    owner = Owner(name="Jordan")
+    scheduler = Scheduler(owner)
+
+    # Tasks packed from 06:00 to 08:00, nothing after
+    tasks = [
+        Task(description="Walk", due_date="2026-03-29",
+             due_time="06:00", duration_minutes=60, priority="high"),
+        Task(description="Feeding", due_date="2026-03-29",
+             due_time="07:00", duration_minutes=60, priority="high"),
+    ]
+
+    # A 60-min slot should fit at 08:00 (after the last task ends)
+    slot = scheduler.find_next_available_slot(tasks, 60, "2026-03-29")
+    assert slot == "08:00"
+
+
+def test_find_slot_returns_none_when_day_is_full():
+    """Should return None if no gap is large enough."""
+    owner = Owner(name="Jordan")
+    scheduler = Scheduler(owner)
+
+    # One giant task that fills the entire schedulable window (06:00-22:00)
+    tasks = [
+        Task(description="All-day event", due_date="2026-03-29",
+             due_time="06:00", duration_minutes=960, priority="high"),
+    ]
+
+    # No room for even a 30-min slot
+    slot = scheduler.find_next_available_slot(tasks, 30, "2026-03-29")
+    assert slot is None
+
+
+def test_find_slot_empty_day():
+    """On an empty day, the slot should start at the beginning of the window."""
+    owner = Owner(name="Jordan")
+    scheduler = Scheduler(owner)
+
+    # No tasks at all — entire day is open
+    slot = scheduler.find_next_available_slot([], 45, "2026-03-29")
+    assert slot == "06:00"

@@ -144,9 +144,23 @@ schedule_date = st.date_input(
     "View schedule for", value=date.today(), key="schedule_date"
 )
 
+# Store the generated schedule in session_state so it persists
+# across reruns (e.g., when the user adjusts the slot duration input)
+if "schedule_data" not in st.session_state:
+    st.session_state.schedule_data = None
+    st.session_state.schedule_target = None
+
 if st.button("Generate Schedule"):
     target = schedule_date.isoformat()
     schedule = scheduler.get_daily_schedule(target)
+    # Save the results so they survive future reruns
+    st.session_state.schedule_data = schedule
+    st.session_state.schedule_target = target
+
+# Display the schedule if we have one saved
+if st.session_state.schedule_data is not None:
+    schedule = st.session_state.schedule_data
+    target = st.session_state.schedule_target
 
     if not schedule:
         st.info(f"No tasks scheduled for {target}.")
@@ -184,6 +198,24 @@ if st.button("Generate Schedule"):
                 st.warning(warning)
         else:
             st.success("No scheduling conflicts detected!")
+
+        # ── Next available slot finder ──
+        st.subheader("Find the Next Available Slot")
+        slot_duration = st.number_input(
+            "How many minutes do you need?",
+            min_value=5, max_value=480, value=30, key="slot_duration"
+        )
+        slot = scheduler.find_next_available_slot(schedule, slot_duration, target)
+        if slot:
+            st.success(
+                f"A {slot_duration}-minute slot is available starting at **{slot}** "
+                f"on {target}."
+            )
+        else:
+            st.error(
+                f"No {slot_duration}-minute slot available on {target}. "
+                f"Try a shorter duration or a different day."
+            )
 
 st.divider()
 
