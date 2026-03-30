@@ -45,7 +45,10 @@ classDiagram
         +filter_by_pet(tasks, pet_name) list~Task~
         +detect_conflicts(tasks: list) list~str~
         +handle_recurrence(task: Task) Task
+        +mark_task_complete(task: Task) Task
         +find_next_available_slot(tasks, duration, date) str
+        -_time_to_minutes(time_str: str) int
+        -_minutes_to_time(total_minutes: int) str
     }
 
     Owner "1" --> "*" Pet : owns
@@ -57,3 +60,7 @@ classDiagram
 - **Owner** owns one or more **Pets** (one-to-many)
 - **Pet** has zero or more **Tasks** (one-to-many)
 - **Scheduler** manages one **Owner** and operates across all their pets' tasks
+
+## Changes from Initial Design
+- Added `mark_task_complete()` to Scheduler — a convenience method that marks a task done and automatically handles recurrence in one step.
+- Added private helper methods `_time_to_minutes()` and `_minutes_to_time()` to Scheduler — used internally by conflict detection and the upcoming next-available-slot feature.
